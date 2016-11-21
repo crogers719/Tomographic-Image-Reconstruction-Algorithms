@@ -1,0 +1,300 @@
+
+\documentclass{sig-alternate}
+\usepackage{amsmath,epsfig}
+\usepackage{xspace, oldgerm}
+\usepackage{times, epsf}
+\usepackage{amsbsy,amssymb, graphicx}%,color,multicol}
+\usepackage{epstopdf}
+\usepackage{paralist}
+\usepackage{booktabs}
+\usepackage{booktabs}
+\usepackage{subfigure}
+\usepackage{floatflt}
+\usepackage{wrapfig}
+\begin{document}
+
+
+\title{Parallel Computing for Simultaneous Iterative MIMO Tomographic Image Reconstruction by GPUs}
+
+\subtitle{[Final Report]}
+
+\def\va{{\bf a}} \def\vb{{\bf b}} \def\vc{{\bf c}} \def\vd{{\bf d}}
+\def\ve{{\bf e}} \def\vf{{\bf f}} \def\vg{{\bf g}} \def\vh{{\bf h}}
+\def\vi{{\bf i}} \def\vj{{\bf j}} \def\vk{{\bf k}} \def\vl{{\bf l}}
+\def\vm{{\bf m}} \def\vn{{\bf n}} \def\vo{{\bf o}} \def\vp{{\bf p}}
+\def\vq{{\bf q}} \def\vr{{\bf r}} \def\vs{{\bf s}} \def\vt{{\bf t}}
+\def\vu{{\bf u}} \def\vv{{\bf v}} \def\vw{{\bf w}} \def\vx{{\bf x}}
+\def\vy{{\bf y}} \def\vz{{\bf z}}
+
+\def\vA{{\bf A}} \def\vB{{\bf B}} \def\vC{{\bf C}} \def\vD{{\bf D}}
+\def\vE{{\bf E}} \def\vF{{\bf F}} \def\vG{{\bf G}} \def\vH{{\bf H}}
+\def\vI{{\bf I}} \def\vJ{{\bf J}} \def\vK{{\bf K}} \def\vL{{\bf L}}
+\def\vM{{\bf M}} \def\vN{{\bf N}} \def\vO{{\bf O}} \def\vP{{\bf P}}
+\def\vQ{{\bf Q}} \def\vR{{\bf R}} \def\vS{{\bf S}} \def\vT{{\bf T}}
+\def\vU{{\bf U}} \def\vV{{\bf V}} \def\vW{{\bf W}} \def\vX{{\bf X}}
+\def\vY{{\bf Y}} \def\vZ{{\bf Z}}
+
+\numberofauthors{4}
+\author{
+
+\alignauthor
+Ricardo Lopez\titlenote{NSF REU Undergraduate}\\
+       \affaddr{Dept of Computer Science}\\
+       \affaddr{University of Puerto Rico, Rio Piedras}\\
+       \affaddr{San Juan, PR 00931}\\
+       \email{ricardo.lopez16@upr.edu}
+% 2nd. author
+\alignauthor
+Colleen Rogers\titlenote{NSF REU Undergraduate}
+\\
+       \affaddr{Dept of Math and Computer Science}\\
+       \affaddr{Salisbury University}\\
+       \affaddr{Salisbury, MD 21801}\\
+       \email{crogers5@gulls.salisbury.edu}
+\and
+% 3rd. author
+\alignauthor Yuanwei Jin 
+\\
+       \affaddr{Dept of Engineering and Aviation Sciences}\\
+       \affaddr{University of Maryland Eastern Shore}\\
+       \email{yjin@umes.edu}
+
+\alignauthor Enyue Lu\\
+\affaddr{Dept of Math and Computer Science}\\
+       \affaddr{Salisbury University}\\
+       \affaddr{Salisbury, MD 21801}\\
+       \email{ealu@salisbury.edu}
+
+}
+
+\maketitle
+\begin{abstract}
+This work is concerned with problem of accelerating inversion algorithms for nonlinear acoustic tomographic imaging by parallel computing on graphics processing units (GPUs). Nonlinear inverse methods for tomographic imaging have many applications. %such as ultrasonic tomography and geophysical exploration.
+However, these methods often rely on iterative algorithms, thus computationally intensive. In this work, we demonstrate imaging speedup by the Simultaneous Iterative Reconstruction Technique (SIRT) on low cost programmable GPUs. Classic SIRT algorithm has a large memory footprint and slow convergence. In this work, we develop GPU-accelerated SIRT algorithms and implementation strategies. Specifically, we develop scalable algorithms to overcome memory constraints of GPUs. To accelerate convergence, we develop novel weighted SIRT algorithms that utilize non-uniform weights and iterative relaxation factors. We evaluate the performance of our algorithms by the NVDIA Compute Unified Device Architecture (CUDA) programming model on Tesla GPUs. The results show that our algorithms achieve significant speedup in image reconstruction compared with the classic iterative algorithms.
+
+%
+%All the algorithms are coded in the Compute Unified Device Architecture (CUDA) programming model. The convergence and imaging performance are tested using computer simulated sensor data. The results show
+%that despite of
+%Despite the fact that, in general,  SIRT has a significantly larger memory footprint and slower convergence, we were able to close the performance gap between SIRT and the traditional ART
+%
+%that the proposed SIRT algorithm achieves significant speedup compared with the traditional iterative algorithm.
+% is used to develop our parallelized algorithm
+%since the CUDA model allows the user to interact with the GPU
+%resources more efficiently than traditional Shader methods. The
+%results show an improvement of more than 80x when compared
+%to the C/C++ version of the algorithm, and 515x when compared
+%to the MATLAB version while achieving high quality imaging for
+%both cases.We test different CUDA kernel configurations in order
+%to measure changes in the processing-time of our algorithm. By
+%examining the acceleration rate and the image quality, we develop
+%an optimal kernel configuration that maximizes the throughput
+%of CUDA implementation for the PBP method.
+
+
+% is well suited for is widely used in many imaging applications such as ultrasonic tomography and geophysical tomography. In these applications, tomographic imaging is to solve a nonlinear wave based inverse problem by the iterative reconstruction technique, which is computationally demanding. We demonstrate the speedup in the computation by the simultaneous iterative reconstruction technique (SIRT) using modern GPUs and study the concerns in the algorithm design.
+\end{abstract}
+
+% A category with the (minimum) three required fields
+%\category{H.4}{Information Systems Applications}{Miscellaneous}
+%A category including the fourth, optional field follows...
+%\category{D.2.8}{Software Engineering}{Metrics}[complexity measures, performance measures]
+
+%\terms{Algorithms, Theory}
+
+\keywords{Parallel Computing, Tomographic Imaging, GPU Computing}
+\pagebreak
+\section{Introduction}
+Full wave based ultrasonic tomographic imaging is able to create high resolution images of the targets of interest and the surrounding inhomogeneous medium. %, thus, it has wide applications in medical imaging and geophysical exploration.
+To image, acoustic sources are excited to survey the imaging areas, the scattered wave fields are recorded by sensors placed around the target of interest. Based upon a pre-determined wave model, a spatial distribution of the material properties of the medium and the target is created. The imaging process, mathematically, is formulated as an inverse problem, i.e.,
+%\begin{equation}
+%$y_j = {\mathcal{A}}_j(f; s_j) + {\eta}_j$, $j=1, \cdots, Q$ %\label{inverse}
+%\end{equation}
+%The goal is
+to infer model parameters $f(\vr)$ over the imaging region $\vr \in \Omega$ from the observed noisy data $y_j = {\mathcal{A}}_j(f; s_j) + {\eta}_j$, $j=1, \cdots, Q$,
+%\in \partial \Omega \times [0, T]$)
+in response to the $j$-th excitation source $s_j$ based upon an acoustical wave model denoted by the nonlinear operator $\mathcal{A}_j(\cdot)$.
+%$T$ is the integration time of the signals measured at the receivers positioned at the boundary $\partial \Omega$ of the imaging field.
+$Q$ is the number of excitation sources and ${\eta}_j$ is the noise or disturbance term. Imaging algorithms typically employ inversion methods to reconstruct $f(\vr)$, for example, Newton's iterative algorithms~\cite{Dong13,RoyJovanovicHormatiParhizkarVetterli}
+\begin{equation}
+f^{k+1} = f^k + \omega \delta f^k(s_j) \label{fkplus1}
+\end{equation}
+where $f^k$ is the parameter value at the $k$-th iteration, $\omega$ is the relaxiation factor, and $\delta f^k(s_j)$ is the increment parameter value calculated based upon sensor data in response to $j$-th excitation source $s_j$, for example, by the propagation and backpropagation method (see our paper \cite{Dong13}) $\delta f^k(s_j) =
+\left({\mathcal{A}}^\prime_j(f^k; s_j)\right)^*(y_j - {\mathcal{A}}_j(f^k; s_j))$.
+However, these algorithms are compute intensive and time consuming, which motivates us to develop faster algorithms and explore new methods of employing parallel computing. Contemporary graphics processing units (GPUs) provide economical access to such massively parallel computational capabilities.
+
+%It is important to note, however, that the high speedup rates facilitated by GPUs do not come easy (see our prior work~\cite{Bello13,bello14,Bello12}). They require one to carefully develop algorithms in the multi-threaded SIMD programming model of the GPU where multiple threads can be executed in parallel to obtain the (final or intermediate) result vector. 
+
+In this work, we develop parallel and scalable algorithms implementable on GPUs using the Simultaneous Iterative Reconstruction Technique (SIRT) to address the computational challenges of nonlinear acoustic tomographic imaging problems.
+
+%Here, special attention must be paid to keep all of these pipelines busy. In this work, we develop
+
+%Different than the classic compressive sensing problem,
+%The imaging problem (\ref{inverse}) we consider is more challenging in that it involves solving a nonlinear full wave inverse problem with active excitation sources. Classic approaches to solving (\ref{inverse}) include the least squares optimization method~\cite{HeFuksLarson,JiaTakenakaTanaka} or the iterative Newton's method~\cite{Dorn99anonlinear}.
+
+%\subsection{The SIRT Algorithm}
+Different than the sequential algorithm (\ref{fkplus1}), also called algebraic reconstruction technique (ART), SIRT is a well known method for image reconstruction following~\cite{AndersenKak,BenjaminKecketal}
+\begin{equation}
+f^{k+1} = f^k + \omega \, \sum_{m=1}^M \delta f^k(S_m) \label{fkplus12}
+\end{equation}
+where $M$ is the number of updates that can be calculated simultaneously. The advantages of SIRT are its higher degree of data parallelism, which could lead to faster iterations, and its robustness to noise in measurement data. However, the disadvantages are the higher memory usage $O(M)$ and its slow convergence because more iterations are needed to create an equivalent image compared with ART.
+
+%One would tend to think that, the (\ref{fkplus12}) can be implemented on GPU naturally by calculating each of the increment value $\delta f^k(S_m)$ in parallel. However, the drawback of the SIRT is its slower convergence than the ART method.
+
+To address the disadvantages of the classic SIRT, we develop GPU-accelerated SIRT algorithms and implementation strategies for nonlinear tomographic imaging. We present three contributions. First, we parallelize the SIRT on GPU for nonlinear inverse algorithm we developed in~\cite{Dong13}. Second, we  design scalable algorithms to accommodate memory constraints of a given GPU. Third, we develop novel non-uniform weighted SIRT algorithms and demonstrate improved convergence compared with the classic SIRT algorithm.
+%We evaluate the performance of a more advanced reconstruction approach on the current GPU technology.
+
+\section{GPU-Accelerated SIRT \&\\Performance}
+%However, it cannot be programmed to calculate the $f(\vr)$ value at different time stages in parallel. Therefore, the final CUDA implementation algorithm becomes a combination of parallel and sequential tasks. For the CUDA implementation of the tomographic imaging algorithm, image values at each grid point (i.e. pixels) are calculated in parallel. Each grid point is processed by a thread. Threads are then organized into blocks by CUDA.
+
+%\subsection{SIRT Algorithm}
+
+%\subsection{GPU Acceleration}
+
+\subsection{Parallelizing SIRT on GPU}
+We note that two layers of parallelization can be implemented for the iteration equation (\ref{fkplus12}) on GPUs. Residue images $\delta f^k(S_m)$ for $m$-th sensor group can be calculated in parallel. Furthermore, because we use the 5-point difference equation to calculate the residue images, the computation can be executed in parallel for each spatial grid point of the imaging field at a given time~\cite{Bello13,bello14,Bello12}. We utilized NVIDIA's computed unified device architecture (CUDA) programming model, which allowed us to strategically allocate GPU resources (see Table~\ref{test}) to accelerate the exectution of SIRT by a factor of $65$x, compared to the CPU implementation (see Table~\ref{table1}).
+%We use Tesla k20c GPU that has 2496 CUDA Cores of $0.71$ GHz and $4.69$ GB RAM. The CPU we use is an Intel Xeon E5-2660 v2  processor with $8$ Cores of  $2.20$ GHz and $94.5$ GB RAM.
+
+\begin{figure}[th]
+\centering
+\begin{subfigure}
+    \centering
+    \includegraphics[scale=0.2]{ground-truth.png}
+\end{subfigure}
+\begin{subfigure}
+    \centering
+    \includegraphics[scale=0.2]{sirt-image.png}
+\end{subfigure}
+\caption{Ground truth image, and SIRT reconstructed image}
+\label{image}
+\end{figure}
+
+%Testing equipment
+\begin{table}[h]
+\begin{center}
+%\ra{1.1}
+\caption{Testing Environment}
+\begin{tabular}{@{}p{2cm} p{2cm}  p{2cm} @{}}  %\toprule
+%\begin{tabular}{ p{8em} r r  r }\toprule
+&    GPU & CPU  \\ \toprule
+Device   &  Tesla k20c  &  Intel Xeon e5-2260 v2 \\ \midrule
+\# of Cores  & 2496@ 0.71GHz & 8 @ 2.20 GHz   \\ \midrule
+RAM & 4.69 GB  &    94.5 GB           \\\bottomrule
+\end{tabular} \label{test}
+\end{center}
+\end{table}
+
+
+\begin{table}[h]
+\begin{center}
+%\ra{1.1}
+\caption{Average SIRT Execution Time (in seconds)}
+\begin{tabular}{@{}p{2cm} p{2cm}  p{2cm} @{}}\toprule
+%\begin{tabular}{ p{8em} r r  r }\toprule
+Algorithm   &    $M = 64$ & $M = 32$  \\ \midrule
+GPU   &  0.7625  & 0.23898  \\
+CPU   & 46.86984 & 15.741976 \\ \midrule
+speedup &   65.4x & 65.9x  \\ \bottomrule
+\end{tabular} \label{table1}
+\end{center}
+\end{table}
+
+
+
+\subsection{Scalability and Memory Constraints}
+%We note that in the SIRT implementation (\ref{fkplus12}),  each parallel senor group needs to allocate a certain amount of space in GPU memory. Due to the memory constraints of the GPU, when $M$ is very large, the amount of parallel executions is limited. To address this issue, we develop a scaled SIRT implementation strategy. 
+%
+
+In the SIRT implementation (\ref{fkplus12}), each of the $M$ image updates must allocate some space in GPU memory in order to execute simultaneously. For large enough $M$, this can overwhelm the available GPU memory. We scale the memory usage of the SIRT by executing $P$ image updates in parallel, $P \le M$, and iterating until all $M$ updates have been calculated (see Fig.~\ref{mem} and Fig.~\ref{scale}). 
+
+
+%We scale the memory usage of the SIRT by executing as many parallel updates as possible $P$ for a given memory configuration, $P \le M$, and repeating until all $M$ updates have been calculated (see Fig.~\ref{mem} and Fig.~\ref{scale}). 
+
+%Fig.~\ref{mem} shows how memory usage scales with $P$ and Fig.~\ref{scale} shows how execution time decreases as $P$ increases.
+
+\begin{figure}[th]
+\centering
+{\includegraphics[scale=0.4]{mem.eps}} 
+\caption{\bf By setting $P$ appropriately, we can control the program's memory usage. }
+\label{mem}
+\end{figure}
+
+\begin{figure}[th]
+\centering
+{\includegraphics[scale=0.4]{scale.eps}} 
+\caption{\bf As $P$ increases, execution time of scalable SIRT decreases.}
+\label{scale}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Non-Uniform Weighted SIRT}
+Note that in the classic SIRT (\ref{fkplus12}), each intermediate image $\delta f^k(S_m)$ is equally weighted and the relaxation factor $\omega$ is a constant. To accelerate the convergence, the weights and the relaxation factor can be modified.
+
+{\bf Non-Uniform Weights:} We propose to apply non-uniform weights to each $\delta f^k(S_m)$ when we update $f$, depending on the quality of each $\delta f^k(S_m)$, i.e., 
+\begin{equation}
+f^{k+1} = f^k + \omega \sum_{m=1}^M \frac{1}{d_m} \delta f^k(S_m)
+\end{equation}
+where $d_m = \|\delta f^k(S_m) - \overline{\delta f^k}\|$ is the Euclidean norm between the $m$-th residue image $\delta f^k(S_m)$ and the average image $\overline{\delta f^k} = \frac{1}{M} \sum_{m=1}^M \delta f^k(S_m)$.
+
+%Fig.~\ref{nonuniform} shows the convergence over time of SIRT with uniform vs. non-uniform weights.
+
+%\begin{figure}[th]
+%\centering
+%{\includegraphics[scale=0.4]{sn.eps}} 
+%\caption{\bf SIRT convergence over time with uniform and non-uniform weighting. } %\label{nonuniform}
+%\end{figure}
+
+%By examining the classic SIRT algorithm, we propose a weighted SIRT algorithm for GPU implementation.
+%
+%\subsubsection{Non-Uniform Weight}
+%
+%The weighted SIRT algorithm can be expressed as
+
+%\subsubsection{Iterative Relaxation Factor}
+{\bf Iterative Relaxation Factor:} We propose an iterative relaxation factor $\omega_i(k)$:
+
+%, applied at the end of each iteration $k$ of SIRT:
+%can weigh how much the normalized image should contribute to updating the current image.
+%We developed a program that greedily chose the best scaling factor at each iteration. Running this program with different images at different sensor group sizes, we noticed that the optimal scaling factor had an alternating pattern that would converge to some value after a certain number of iterations.
+
+\begin{equation}
+f^{k+1} = f^k + \omega_i(k) \sum_{m=1}^M \frac{1}{d_m} \delta f^k(S_m)
+\end{equation}
+\begin{equation}
+w_i(k) = \alpha_i + \frac{\beta_i}{k}, \,\,\, i = k \bmod 2
+\end{equation}
+
+By using non-uniform weights and the iterative relaxation factor with an optimal $\alpha_i$ and $\beta_i$ for a given image, we are able to improve the SIRT's convergence (see Fig.~\ref{nonuniform}).
+
+%$\alpha_i$ and $\beta_i$ are alternating sets of parameters, for a given image.
+%where $\omega_i(k)$, with two distinct sets of parameters, $\alpha_i$ and $\beta_i$
+
+%The improvement of the performance is shown in Fig.~\ref{nonuniform}.
+
+\begin{figure}[th]
+\centering
+{\includegraphics[scale=0.4]{s.eps}} 
+\caption{\bf SIRT convergence over time with non-uniform weights. } \label{nonuniform}
+\end{figure}
+
+%Fig.~\ref{sirtvsart} shows the convergence over time of the improved SIRT vs. ART.
+
+\begin{figure}[th]
+\centering
+{\includegraphics[scale=0.4]{sva.eps}} 
+\caption{\bf Convergence over time, SIRT vs. ART. } \label{sirtvsart}
+\end{figure}
+
+\section{Conclusions}
+We've shown that we're able to improve the SIRT's convergence in the presence of noise by the use of non-uniform weighting schemes. Although minimal, this SIRT implementation shows improved convergence when compared to the traditional ART, albeit slower (see Fig~\ref{sirtvsart}) and with greater memory usage. Given a larger problem set, we conjecture that the Non-Uniform Weighted SIRT will show an even larger improvement over the ART.
+%due to the pattern noted in Fig ~\ref{scale}.
+
+%\end{document}  % This is where a 'short' article might terminate
+
+%ACKNOWLEDGMENTS are optional
+\section*{Acknowledgments}
+This work was funded by the National Science Foundation under grant no. CCF-1460900 and the Army Research Office under grant no. W911NF-11-1-0160.
+%\newpage
+
+\bibliographystyle{abbrv}
+\bibliography{sigproc} 
+\end{document}
